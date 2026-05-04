@@ -1,6 +1,8 @@
 <<<<<<< HEAD
 # Soccer Match Outcome Prediction & Value Betting System
 
+Note: This project was built to practice statistical methods with something I am interested in, not to actually make sports prediction bets.
+
 An end-to-end sports analytics pipeline built in R that identifies positive expected value (+EV) betting opportunities 
 in the Premier League and UEFA Champions League. The system fetches live match and odds data from public APIs, fits 
 two independent predictive models, blends them in a weighted ensemble, and surfaces fixtures where the model's 
