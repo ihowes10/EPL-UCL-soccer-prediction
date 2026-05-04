@@ -1,0 +1,32 @@
+# run_data.R — master runner for the data collection layer
+# Run this from the soccer_value/ directory: source("run_data.R")
+
+setwd(dirname(rstudioapi::getSourceEditorContext()$path))  # RStudio: set wd to this file
+# If running from terminal: setwd("/path/to/soccer_value")
+
+source("R/01_fetch_matches.R")
+source("R/02_fetch_odds.R")
+source("R/03_features.R")
+source("R/04_dixon_coles.R")
+source("R/05_elo_logistic.R")
+source("R/06_ensemble.R")
+
+message("\n=== Full pipeline complete ===")
+message("data/raw/:")
+message("  historical_matches.csv  — finished results for model training")
+message("  upcoming_matches.csv    — scheduled fixtures")
+message("  odds_raw.csv            — per-bookmaker decimal odds")
+message("  odds_consensus.csv      — averaged odds + vig-adjusted implied probs")
+message("data/processed/:")
+message("  team_long.rds           — long format with rolling form per team")
+message("  team_strength.csv       — Dixon-Coles attack/defence parameters")
+message("  match_features.csv      — wide feature matrix for model training")
+message("  upcoming_features.csv   — upcoming fixtures with all features + odds")
+message("outputs/:")
+message("  all_predictions.csv        — DC model probabilities for every upcoming fixture")
+message("  elo_predictions.csv        — Elo/logistic probabilities")
+message("  ensemble_predictions.csv   — blended probabilities + divergence")
+message("  ensemble_value_bets.csv    — ranked value bets (edge > 5pp, EV > 0)")
+message("  plots/                     — calibration + agreement charts (after 07_evaluate.R)")
+message("")
+message("Run source('R/07_evaluate.R') separately after several matchweeks to assess accuracy.")
