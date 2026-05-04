@@ -145,8 +145,4 @@ soccer_value/
 - **Odds availability**: CL knockout fixtures often have thinner markets; fixtures without odds still receive model predictions but no EV estimate.
 - **Planned**: Kelly criterion staking, Asian handicap markets, dynamic ensemble weighting, automated daily pipeline refresh.
 =======
-# EPL-UCL-soccer-prediction
-A regression/bayesian ensamble model to find matches with "high EV" in the English Premier League and UEFA Champions League. 
-
-Note: This project was built to practice statistical methods with something I am interested in,  not to actually make sports prediction bets. 
 >>>>>>> b8b4d5c9713d81cdd1323e8d26afa37d047cf89a
