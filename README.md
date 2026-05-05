@@ -137,12 +137,5 @@ soccer_value/
 ```
 
 ---
-
-## Limitations & Planned Extensions
-
-- **In-sample DC evaluation**: the Bayesian model is evaluated on data it was trained on; `07_evaluate.R` includes a `USE_LOO` flag for rigorous PSIS-LOO cross-validation once compute allows.
-- **Equal ensemble weights**: weights are currently fixed at 0.5/0.5 and should be tuned once sufficient evaluation data accumulates.
-- **Odds availability**: CL knockout fixtures often have thinner markets; fixtures without odds still receive model predictions but no EV estimate.
-- **Planned**: Kelly criterion staking, Asian handicap markets, dynamic ensemble weighting, automated daily pipeline refresh.
 =======
 >>>>>>> b8b4d5c9713d81cdd1323e8d26afa37d047cf89a
