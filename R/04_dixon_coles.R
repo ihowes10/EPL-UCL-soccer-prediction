@@ -161,7 +161,14 @@ pred_data <- upcoming_features |>
     homegoals    = 0L,
     awaygoals    = 0L,
     decay_weight = 1,
-    competition  = factor(competition, levels = levels(train_data$competition)),
+    # Cup competitions (FAC, ELC) aren't in training data — map them to PL
+    # so the model uses PL-level goal rates rather than erroring on unknown levels.
+    # as.character() is required first: ifelse() on a factor returns integer codes.
+    competition  = factor(
+      if_else(as.character(competition) %in% levels(train_data$competition),
+              as.character(competition), "PL"),
+      levels = levels(train_data$competition)
+    ),
     att_home     = home_team,
     def_away     = away_team,
     att_away     = away_team,

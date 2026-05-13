@@ -24,7 +24,8 @@ nan_to_na <- function(x) replace(x, is.nan(x), NA_real_)
 historical <- read_csv(file.path(DATA_DIR, "historical_matches.csv"), show_col_types = FALSE) |>
   filter(!is.na(home_goals), !is.na(away_goals))
 
-upcoming   <- read_csv(file.path(DATA_DIR, "upcoming_matches.csv"),   show_col_types = FALSE)
+upcoming   <- read_csv(file.path(DATA_DIR, "upcoming_matches.csv"),   show_col_types = FALSE) |>
+  filter(as.Date(utc_date) <= Sys.Date() + days(LOOKAHEAD_DAYS))
 odds       <- read_csv(file.path(DATA_DIR, "odds_consensus.csv"),     show_col_types = FALSE)
 
 message(glue("Loaded {nrow(historical)} historical matches, {nrow(upcoming)} upcoming fixtures."))
@@ -78,11 +79,11 @@ team_long <- team_long |>
   group_by(team) |>
   arrange(utc_date, .by_group = TRUE) |>
   mutate(
-    form_pts_5 = slide_dbl(team_points,   mean,   .before = 5, .after = -1, .complete = FALSE),
-    form_gf_5  = slide_dbl(goals_for,     mean,   .before = 5, .after = -1, .complete = FALSE),
-    form_ga_5  = slide_dbl(goals_against, mean,   .before = 5, .after = -1, .complete = FALSE),
+    form_pts_5 = lag(slide_dbl(team_points,   \(w) mean(w, na.rm = TRUE), .before = 4, .after = 0, .complete = FALSE)),
+    form_gf_5  = lag(slide_dbl(goals_for,     \(w) mean(w, na.rm = TRUE), .before = 4, .after = 0, .complete = FALSE)),
+    form_ga_5  = lag(slide_dbl(goals_against, \(w) mean(w, na.rm = TRUE), .before = 4, .after = 0, .complete = FALSE)),
     form_gd_5  = form_gf_5 - form_ga_5,
-    form_n     = slide_int(team_points,   length, .before = 5, .after = -1, .complete = FALSE)
+    form_n     = lag(slide_int(team_points,   \(w) sum(!is.na(w)),        .before = 4, .after = 0, .complete = FALSE))
   ) |>
   mutate(across(starts_with("form_"), nan_to_na)) |>
   ungroup()

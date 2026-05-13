@@ -73,13 +73,32 @@ fetch_matches <- function(competition_code, season) {
   parse_matches(matches_raw, competition_code, season)
 }
 
-# ── run ───────────────────────────────────────────────────────────────────────
+# ── incremental fetch ─────────────────────────────────────────────────────────
+# Past seasons are frozen once fetched. Only the current season is re-pulled
+# each run so new results get added without hitting the API unnecessarily.
 
 message("=== Fetching match data ===")
-message(glue("Competitions: {paste(TARGET_COMPETITIONS, collapse=', ')}"))
-message(glue("Seasons: {paste(SEASONS, collapse=', ')}"))
 
-all_matches <- map_dfr(SEASONS, function(season) {
+historical_path <- file.path(DATA_DIR, "historical_matches.csv")
+upcoming_path   <- file.path(DATA_DIR, "upcoming_matches.csv")
+
+# Load whatever we already have on disk
+if (file.exists(historical_path)) {
+  stored <- read_csv(historical_path, show_col_types = FALSE)
+  stored_seasons <- unique(stored$season)
+  # Past seasons already stored — no need to re-fetch
+  skip_seasons <- stored_seasons[stored_seasons < CURRENT_SEASON]
+  fetch_seasons <- setdiff(SEASONS, skip_seasons)
+  message(glue("Skipping seasons already stored: {paste(sort(skip_seasons), collapse=', ')}"))
+  message(glue("Fetching seasons: {paste(sort(fetch_seasons), collapse=', ')}"))
+} else {
+  stored <- tibble()
+  fetch_seasons <- SEASONS
+  message(glue("No existing data found. Fetching all seasons: {paste(SEASONS, collapse=', ')}"))
+}
+
+# Pull only the seasons we need
+new_matches <- map_dfr(fetch_seasons, function(season) {
   map_dfr(TARGET_COMPETITIONS, function(comp_code) {
     result <- fetch_matches(comp_code, season)
     Sys.sleep(7)  # respect 10 req/min rate limit
@@ -87,12 +106,42 @@ all_matches <- map_dfr(SEASONS, function(season) {
   })
 })
 
+# Merge new data with stored data, updating any existing rows by match_id
+# (handles the case where a previously SCHEDULED match is now FINISHED)
+all_matches <- bind_rows(stored, new_matches) |>
+  arrange(desc(utc_date)) |>
+  distinct(match_id, .keep_all = TRUE)
+
 historical_matches <- filter(all_matches, status == "FINISHED")
 upcoming_matches   <- filter(all_matches, status %in% c("SCHEDULED", "TIMED"))
 
+# ── Cup competitions (upcoming only) ──────────────────────────────────────────
+# Cups are never stored in historical data so they don't enter model training.
+# We only fetch CURRENT_SEASON and keep fixtures within the lookahead window.
+
+if (length(CUP_COMPETITIONS) > 0) {
+  message(glue("\nFetching cup competitions (upcoming only): {paste(CUP_COMPETITIONS, collapse=', ')}"))
+  cup_upcoming <- map_dfr(CUP_COMPETITIONS, function(comp_code) {
+    result <- fetch_matches(comp_code, CURRENT_SEASON)
+    Sys.sleep(7)
+    result
+  }) |>
+    filter(
+      status %in% c("SCHEDULED", "TIMED"),
+      as.Date(utc_date) <= Sys.Date() + days(LOOKAHEAD_DAYS)
+    )
+
+  if (nrow(cup_upcoming) > 0) {
+    message(glue("  → {nrow(cup_upcoming)} cup fixture(s) in the next {LOOKAHEAD_DAYS} days."))
+    upcoming_matches <- bind_rows(upcoming_matches, cup_upcoming)
+  } else {
+    message("  → No cup fixtures in the lookahead window.")
+  }
+}
+
 dir.create(DATA_DIR, recursive = TRUE, showWarnings = FALSE)
-write_csv(historical_matches, file.path(DATA_DIR, "historical_matches.csv"))
-write_csv(upcoming_matches,   file.path(DATA_DIR, "upcoming_matches.csv"))
+write_csv(historical_matches, historical_path)
+write_csv(upcoming_matches,   upcoming_path)
 saveRDS(all_matches,          file.path(DATA_DIR, "all_matches.rds"))
 
 message(glue(

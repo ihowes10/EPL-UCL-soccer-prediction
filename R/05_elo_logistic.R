@@ -222,7 +222,11 @@ upcoming_elo <- upcoming_features |>
     elo_home      = replace_na(elo_home, ELO_INIT),
     elo_away      = replace_na(elo_away, ELO_INIT),
     elo_diff      = elo_home - elo_away,
-    competition   = factor(competition, levels = levels(train_data$competition)),
+    competition   = factor(
+      if_else(as.character(competition) %in% levels(train_data$competition),
+              as.character(competition), "PL"),
+      levels = levels(train_data$competition)
+    ),
     home_form_pts = replace_na(home_form_pts, 1.5),
     away_form_pts = replace_na(away_form_pts, 1.5),
     home_form_gd  = replace_na(home_form_gd, 0),

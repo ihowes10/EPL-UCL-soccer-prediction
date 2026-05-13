@@ -21,6 +21,9 @@ source("config.R")
 source("00_setup.R")
 
 OUTPUT_DIR <- "outputs"
+run_date   <- format(Sys.Date(), "%m-%d-%Y")
+dated_dir  <- file.path(OUTPUT_DIR, run_date)
+dir.create(dated_dir, recursive = TRUE, showWarnings = FALSE)
 
 DC_WEIGHT  <- 0.5   # relative weight for Dixon-Coles model
 ELO_WEIGHT <- 0.5   # relative weight for Elo/logistic model
@@ -44,8 +47,8 @@ elo_preds <- read_csv(file.path(OUTPUT_DIR, "elo_predictions.csv"),  show_col_ty
 
 if (nrow(dc_preds) == 0 || nrow(elo_preds) == 0) {
   message("No upcoming fixtures to ensemble — writing empty output files.")
-  write_csv(tibble(), file.path(OUTPUT_DIR, "ensemble_predictions.csv"))
-  write_csv(tibble(), file.path(OUTPUT_DIR, "ensemble_value_bets.csv"))
+  write_csv(tibble(), file.path(dated_dir, "predictions.csv"))
+  write_csv(tibble(), file.path(dated_dir, "full_output.csv"))
 } else {
 
 elo_slim <- elo_preds |>
@@ -202,13 +205,13 @@ fixture_ev <- combined |>
       !is.na(ev_home) & ev_home == best_ev ~ "Home",
       !is.na(ev_draw) & ev_draw == best_ev ~ "Draw",
       !is.na(ev_away) & ev_away == best_ev ~ "Away",
-      TRUE ~ NA_character_
+      TRUE ~ ens_pick  # no odds available — fall back to ensemble model's predicted outcome
     ),
     match_date = as.Date(utc_date)
   ) |>
   arrange(desc(best_ev))
 
-# CSV: clean summary only — the columns you want to browse
+# predictions.csv — clean summary for browsing
 fmt_ev <- function(x) ifelse(is.na(x), NA_character_, sprintf("%.2f%%", x * 100))
 
 fixture_ev |>
@@ -225,7 +228,12 @@ fixture_ev |>
     models_agree, more_confident,
     ev_home, ev_draw, ev_away, best_ev, best_bet
   ) |>
-  write_csv(file.path(OUTPUT_DIR, "full_ev_table.csv"))
+  write_csv(file.path(dated_dir, "predictions.csv"))
+
+# full_output.csv — every model column rounded, for historical reference
+fixture_ev |>
+  mutate(across(where(is.numeric), \(x) round(x, 3))) |>
+  write_csv(file.path(dated_dir, "full_output.csv"))
 
 message("\n", strrep("=", 70))
 message("ALL FIXTURES — sorted by best available EV")
@@ -290,7 +298,9 @@ if (nrow(ensemble_bets) == 0) {
 # ── 7. Save ───────────────────────────────────────────────────────────────────
 
 message(glue("\n=== Ensemble complete ==="))
-message(glue("  full_ev_table.csv : {nrow(fixture_ev)} fixtures saved"))
+message(glue("  predictions.csv  : {nrow(fixture_ev)} fixtures"))
+message(glue("  full_output.csv  : {nrow(fixture_ev)} fixtures (all columns)"))
+message(glue("  Folder: outputs/{run_date}/"))
 message("\nNext steps:")
 message("  - Run source('R/07_evaluate.R') after several matchweeks to assess model accuracy")
 message("  - Adjust DC_WEIGHT / ELO_WEIGHT in this script based on evaluation results")
